@@ -14,4 +14,4 @@ gcloud ai-platform jobs submit training mnist_`date +"%s"` \
     -- \
     --epochs $EPOCHS \
     --batch-size $BATCH_SIZE \
-    --model-output-path gs://mymagic-kschool-23012021/modelscon
+    --model-output-path gs://mymagic-kschool-23012021/models

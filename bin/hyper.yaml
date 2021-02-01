@@ -1,6 +1,5 @@
-# bin/hyper.yaml
-trainintInput:
-  hyperparameter:
+trainingInput:
+  hyperparameters:
     goal: MAXIMIZE
     hyperparameterMetricTag: accuracy_live_class
     maxTrials: 15
@@ -19,3 +18,8 @@ trainintInput:
       - 1024
       - 2048
       - 4096
+    - parameterName: model-type
+      type: CATEGORICAL
+      categoricalValues:
+      - Dense
+      - Conv

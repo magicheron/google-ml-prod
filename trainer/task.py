@@ -4,6 +4,7 @@ import argparse
 import logging.config
 import os
 import time
+import sys
 
 import tensorflow as tf
 
@@ -29,12 +30,35 @@ def _download_data():
     x_test, y_test = test
     return x_train, y_train, x_test, y_test
 
+def _preprocess_conv_data(x, y):
+    LOGGER.info("Preprocessing Data...")
+    x = x / 255.0
+    x = x.reshape(-1, 28, 28, 1)
+    y = utils.to_categorical(y)
+
+    return x,y
+
 def _preprocess_data(x, y):
     LOGGER.info("Preprocessing Data...")
     x = x / 255.0
     y = utils.to_categorical(y)
 
     return x,y
+
+def _build_conv_model():
+    LOGGER.info("Building Model...")
+    m = models.Sequential()
+    m.add(layers.Input((28, 28, 1), name='my_input_layer'))
+    m.add(layers.Conv2D(32, (3, 3), activation=activations.relu))
+    m.add(layers.MaxPooling2D((2, 2)))
+    m.add(layers.Conv2D(16, (3, 3), activation=activations.relu))
+    m.add(layers.MaxPooling2D((2, 2)))
+    m.add(layers.Conv2D(8, (3, 3), activation=activations.relu))
+    m.add(layers.MaxPooling2D((2, 2)))
+    m.add(layers.Flatten())
+    m.add(layers.Dense(10, activation=activations.softmax))
+
+    return m
 
 def _build_model():
     LOGGER.info("Building Model...")
@@ -48,17 +72,24 @@ def _build_model():
 
     return m
 
-def train_and_evaluate(batch_size, epochs, job_dir, output_path, is_hypertune):
+def train_and_evaluate(batch_size, epochs, job_dir, output_path, is_hypertune, model_type):
     
     # Download the data
     x_train, y_train, x_test, y_test = _download_data()
 
     # Preprocess the data
-    x_train, y_train = _preprocess_data(x_train, y_train)
-    x_test, y_test = _preprocess_data(x_test, y_test)
+    if model_type == 'Conv':
+        x_train, y_train = _preprocess_conv_data(x_train, y_train)
+        x_test, y_test = _preprocess_conv_data(x_test, y_test)
+    else:
+        x_train, y_train = _preprocess_data(x_train, y_train)
+        x_test, y_test = _preprocess_data(x_test, y_test)
 
     # Build the model
-    model = _build_model()
+    if model_type == 'Conv':
+        model = _build_conv_model()
+    else:    
+        model = _build_model()
     model.compile(loss=losses.categorical_crossentropy, optimizer=optimizers.Adam(), metrics=[metrics.categorical_accuracy])
 
     # Train the model
@@ -81,7 +112,7 @@ def train_and_evaluate(batch_size, epochs, job_dir, output_path, is_hypertune):
 
     if not is_hypertune:
         # Save model in TF SavedModel Format
-        model_dir = os.path.join(output_path, VERSION) 
+        model_dir = os.path.join(output_path, VERSION)
         models.save_model(model, model_dir, save_format='tf')
 
 def main():
@@ -92,6 +123,7 @@ def main():
     parser.add_argument('--epochs', type=int, help='Number of epochs for the training')
     parser.add_argument('--job-dir', default=None, required=False, help='Option for AI Platform')
     parser.add_argument('--model-output-path', help='Path to write the SaveModel format')
+    parser.add_argument('--model-type', default='Dense', help='This is model type job')
 
     args = parser.parse_args()
     is_hypertune = args.hypertune
@@ -99,8 +131,13 @@ def main():
     epochs = args.epochs
     job_dir = args.job_dir
     output_path = args.model_output_path
+    model_type = args.model_type
 
-    train_and_evaluate(batch_size, epochs, job_dir, output_path, is_hypertune)
+    if not model_type in ['Dense', 'Conv']:
+        print('Model type mus be Dense or Conv')
+        sys.exit(1)
+
+    train_and_evaluate(batch_size, epochs, job_dir, output_path, is_hypertune, model_type)
 
 if __name__ == "__main__":
     main()
